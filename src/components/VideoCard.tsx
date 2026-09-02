@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { VideoItem } from '@/types/portfolio';
-import { Play, Pause, Volume2, VolumeX } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Loader2 } from 'lucide-react';
 
 interface VideoCardProps {
   item: VideoItem;
@@ -19,36 +19,51 @@ export const VideoCard: React.FC<VideoCardProps> = ({
   const progressRef = useRef<HTMLDivElement>(null);
   const shouldPlayRef = useRef<boolean>(false);
 
-  // Lazy loading state: video src is unmounted/unbuffered until interaction
+  // Interaction and playback state
   const [isActivated, setIsActivated] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [hasPlayedBefore, setHasPlayedBefore] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [progress, setProgress] = useState(0);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
 
-  // 1. Auto-Generated Lightweight Thumbnail (capture still frame at 1s)
+  // Detect touch device for mobile vs desktop interaction
+  useEffect(() => {
+    setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
+  }, []);
+
+  // 1. Auto-Generated Lightweight Thumbnail
   const posterUrl = `https://res.cloudinary.com/${cloudName}/video/upload/so_1.0,w_${
     isCompact ? 480 : 560
   },c_fill/${item.publicId}.jpg`;
 
   // 2. Direct Cloudinary Video Stream URL
-  // Note: We deliberately use the direct clean stream URL without on-the-fly transformations (f_auto,q_auto)
-  // because Cloudinary returns "HTTP 423 Locked" for on-demand transcoding of large video assets.
   const videoUrl = `https://res.cloudinary.com/${cloudName}/video/upload/${item.publicId}.mp4`;
 
   // Trigger buffering and playback upon user interaction
   const activateAndPlay = () => {
     shouldPlayRef.current = true;
     if (!isActivated) {
+      setIsLoading(true);
       setIsActivated(true);
     } else {
       const video = videoRef.current;
       if (video) {
+        if (video.readyState < 3) {
+          setIsLoading(true);
+        }
         video
           .play()
-          .then(() => setIsPlaying(true))
+          .then(() => {
+            setIsLoading(false);
+            setIsPlaying(true);
+            setHasPlayedBefore(true);
+          })
           .catch((err) => {
             console.warn('Playback attempt prevented:', err);
+            setIsLoading(false);
           });
       }
     }
@@ -56,6 +71,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({
 
   const pauseVideo = () => {
     shouldPlayRef.current = false;
+    setIsLoading(false);
     const video = videoRef.current;
     if (video) {
       video.pause();
@@ -73,10 +89,20 @@ export const VideoCard: React.FC<VideoCardProps> = ({
     if (video) {
       if (video.paused) {
         shouldPlayRef.current = true;
+        if (video.readyState < 3) {
+          setIsLoading(true);
+        }
         video
           .play()
-          .then(() => setIsPlaying(true))
-          .catch(console.warn);
+          .then(() => {
+            setIsLoading(false);
+            setIsPlaying(true);
+            setHasPlayedBefore(true);
+          })
+          .catch((err) => {
+            console.warn('Play blocked:', err);
+            setIsLoading(false);
+          });
       } else {
         shouldPlayRef.current = false;
         video.pause();
@@ -100,8 +126,15 @@ export const VideoCard: React.FC<VideoCardProps> = ({
     if (shouldPlayRef.current && videoRef.current) {
       videoRef.current
         .play()
-        .then(() => setIsPlaying(true))
-        .catch((err) => console.warn('Autoplay prevented:', err));
+        .then(() => {
+          setIsLoading(false);
+          setIsPlaying(true);
+          setHasPlayedBefore(true);
+        })
+        .catch((err) => {
+          console.warn('Autoplay prevented:', err);
+          setIsLoading(false);
+        });
     }
   };
 
@@ -132,8 +165,8 @@ export const VideoCard: React.FC<VideoCardProps> = ({
             ? 'max-w-[240px] border-[5px] rounded-[2.2rem]'
             : 'max-w-[280px] border-[6px] rounded-[2.5rem]'
         } aspect-[9/19] border-[#3A332F]/90 overflow-hidden shadow-lg bg-black group cursor-pointer select-none`}
-        onMouseEnter={activateAndPlay}
-        onMouseLeave={pauseVideo}
+        onMouseEnter={!isTouchDevice ? activateAndPlay : undefined}
+        onMouseLeave={!isTouchDevice ? pauseVideo : undefined}
         onClick={() => togglePlayPause()}
       >
         {/* Dynamic Speaker Notch */}
@@ -164,7 +197,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({
           loading="lazy"
         />
 
-        {/* 2. Deferred Lazy-Loaded Video Element (Only assigned src on hover/click) */}
+        {/* 2. Deferred Lazy-Loaded Video Element */}
         <video
           ref={videoRef}
           src={isActivated ? videoUrl : undefined}
@@ -174,20 +207,60 @@ export const VideoCard: React.FC<VideoCardProps> = ({
           playsInline
           onCanPlay={handleReadyToPlay}
           onLoadedData={handleReadyToPlay}
+          onWaiting={() => setIsLoading(true)}
+          onPlaying={() => {
+            setIsLoading(false);
+            setIsPlaying(true);
+            setHasPlayedBefore(true);
+          }}
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
           onTimeUpdate={handleTimeUpdate}
           onError={(e) => {
             console.warn(`Video playback error on ${item.id}:`, e);
+            setIsLoading(false);
           }}
           className={`w-full h-full object-cover relative z-10 transition-opacity duration-700 ${
             isVideoLoaded && isPlaying ? 'opacity-100' : 'opacity-0'
           }`}
         />
 
-        {/* Custom Glassmorphic Controls Overlay */}
-        <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-auto bg-black/55 backdrop-blur-md py-1.5 px-3 rounded-full text-white text-xs">
-          {/* Play / Pause */}
+        {/* 3. Center Filter Overlay with Play/Resume Button and Loader */}
+        <div
+          className={`absolute inset-0 z-25 flex flex-col items-center justify-center transition-all duration-300 ${
+            isPlaying && !isLoading
+              ? 'opacity-0 pointer-events-none'
+              : 'opacity-100 bg-black/40 backdrop-blur-[2px] pointer-events-auto'
+          }`}
+        >
+          {isLoading ? (
+            /* Loading Spinner State */
+            <div className="flex flex-col items-center justify-center space-y-3">
+              <div className="w-14 h-14 rounded-full bg-black/60 backdrop-blur-md border border-[#CAA290]/40 flex items-center justify-center shadow-2xl">
+                <Loader2 className="w-7 h-7 text-[#CAA290] animate-spin" />
+              </div>
+              <span className="text-[10px] uppercase tracking-[0.25em] text-white/90 font-medium font-sans animate-pulse">
+                Buffering...
+              </span>
+            </div>
+          ) : (
+            /* Play / Resume CTA Button */
+            <div className="flex flex-col items-center justify-center space-y-2.5 transform transition-transform duration-300 hover:scale-105">
+              <div className="w-14 h-14 rounded-full bg-[#CAA290]/90 hover:bg-[#CAA290] text-white flex items-center justify-center shadow-2xl border border-white/20 transition-all duration-300">
+                <Play className="w-6 h-6 fill-white ml-1" />
+              </div>
+              <div className="bg-black/60 backdrop-blur-md px-3.5 py-1 rounded-full border border-white/10 shadow-md">
+                <span className="text-[11px] font-sans tracking-widest uppercase font-semibold text-white">
+                  {hasPlayedBefore ? 'Resume' : isTouchDevice ? 'Tap to Play' : 'Play Preview'}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 4. Custom Glassmorphic Bottom Controls Overlay */}
+        <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-auto bg-black/55 backdrop-blur-md py-1.5 px-3 rounded-full text-white text-xs">
+          {/* Play / Pause Toggle */}
           <button
             onClick={togglePlayPause}
             className="p-1 hover:text-[#CAA290] transition-colors focus:outline-none"
@@ -200,7 +273,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({
             )}
           </button>
 
-          {/* Progress Bar with Seek */}
+          {/* Scrubbable Progress Bar */}
           <div
             ref={progressRef}
             onClick={handleSeek}
@@ -212,7 +285,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({
             />
           </div>
 
-          {/* Mute / Unmute */}
+          {/* Mute / Unmute Toggle */}
           <button
             onClick={toggleMute}
             className="p-1 hover:text-[#CAA290] transition-colors focus:outline-none"
