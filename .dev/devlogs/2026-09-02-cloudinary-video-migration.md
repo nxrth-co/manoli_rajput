@@ -64,12 +64,17 @@ Turns out, asking Cloudinary to dynamically transcode an 87MB video on-the-fly w
 ### The Polish: Play/Resume Filter & Buffering Spinner
 
 To give viewers a high-end, tactile experience:
-- We built a dark frosted overlay with an inviting circular Play button on top of every video thumbnail.
+- We fixed a sneaky CSS stacking bug: the filter was previously set to `z-25` (an invalid Tailwind utility), causing it to render behind the poster image (`z-10`). Bumping it to `z-30` guarantees it sits unmistakably on top of every video thumbnail with a glowing gold play button.
 - While the video buffers, it switches to a sleek, animated gold spinner (`Buffering...`).
 - When playback starts, the overlay effortlessly disappears.
 - When the viewer leaves or moves to another video, the overlay gracefully returns with the Play icon now reading **"Resume"**!
-- On Desktop: Hovering previews and leaves pause; clicking toggles.
-- On Mobile: Tapping cleanly activates and pauses with zero accidental scroll triggers.
+
+### True Concurrency: One Stage, One Performer
+
+To make sure videos don't talk over each other, we introduced `VideoPlaybackContext`:
+- Only ONE video can be focused and streaming at any given second.
+- If video A is playing and the user hovers or taps video B, video A immediately freezes, drops its stream connection, and presents its **"Resume"** overlay.
+- Video B takes the center stage instantly. Bandwidth is conserved, and audio never clashes!
 
 ---
 
