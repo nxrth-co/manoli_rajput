@@ -2,6 +2,7 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { VideoItem } from '@/types/portfolio';
+import { useVideoPlayback } from '@/context/VideoPlaybackContext';
 import { Play, Pause, Volume2, VolumeX, Loader2 } from 'lucide-react';
 
 interface VideoCardProps {
@@ -19,7 +20,11 @@ export const VideoCard: React.FC<VideoCardProps> = ({
   const progressRef = useRef<HTMLDivElement>(null);
   const shouldPlayRef = useRef<boolean>(false);
 
-  // Interaction and playback state
+  // Global video concurrency context
+  const { activeVideoId, requestPlay, pauseActive } = useVideoPlayback();
+  const isFocused = activeVideoId === item.id;
+
+  // Local card state
   const [isActivated, setIsActivated] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -34,6 +39,18 @@ export const VideoCard: React.FC<VideoCardProps> = ({
     setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
   }, []);
 
+  // Concurrency monitor: If another video is played, immediately stop this video
+  useEffect(() => {
+    if (!isFocused) {
+      if (videoRef.current && !videoRef.current.paused) {
+        videoRef.current.pause();
+      }
+      setIsPlaying(false);
+      setIsLoading(false);
+      shouldPlayRef.current = false;
+    }
+  }, [isFocused]);
+
   // 1. Auto-Generated Lightweight Thumbnail
   const posterUrl = `https://res.cloudinary.com/${cloudName}/video/upload/so_1.0,w_${
     isCompact ? 480 : 560
@@ -42,9 +59,11 @@ export const VideoCard: React.FC<VideoCardProps> = ({
   // 2. Direct Cloudinary Video Stream URL
   const videoUrl = `https://res.cloudinary.com/${cloudName}/video/upload/${item.publicId}.mp4`;
 
-  // Trigger buffering and playback upon user interaction
+  // Activate and play: claims sole active focus across the page
   const activateAndPlay = () => {
     shouldPlayRef.current = true;
+    requestPlay(item.id); // Claims focus; automatically stops any other currently playing video
+
     if (!isActivated) {
       setIsLoading(true);
       setIsActivated(true);
@@ -77,37 +96,15 @@ export const VideoCard: React.FC<VideoCardProps> = ({
       video.pause();
       setIsPlaying(false);
     }
+    pauseActive(item.id);
   };
 
   const togglePlayPause = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    if (!isActivated) {
+    if (!isFocused || !isPlaying) {
       activateAndPlay();
-      return;
-    }
-    const video = videoRef.current;
-    if (video) {
-      if (video.paused) {
-        shouldPlayRef.current = true;
-        if (video.readyState < 3) {
-          setIsLoading(true);
-        }
-        video
-          .play()
-          .then(() => {
-            setIsLoading(false);
-            setIsPlaying(true);
-            setHasPlayedBefore(true);
-          })
-          .catch((err) => {
-            console.warn('Play blocked:', err);
-            setIsLoading(false);
-          });
-      } else {
-        shouldPlayRef.current = false;
-        video.pause();
-        setIsPlaying(false);
-      }
+    } else {
+      pauseVideo();
     }
   };
 
@@ -123,7 +120,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({
   // Called when video element receives source and is ready to buffer/play
   const handleReadyToPlay = () => {
     setIsVideoLoaded(true);
-    if (shouldPlayRef.current && videoRef.current) {
+    if (shouldPlayRef.current && isFocused && videoRef.current) {
       videoRef.current
         .play()
         .then(() => {
@@ -173,7 +170,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({
         <div
           className={`absolute top-2 left-1/2 -translate-x-1/2 ${
             isCompact ? 'w-14 h-3' : 'w-16 h-3.5'
-          } bg-[#3A332F]/80 rounded-full z-30 pointer-events-none`}
+          } bg-[#3A332F]/80 rounded-full z-40 pointer-events-none`}
         />
 
         {/* Dynamic Watermark Letter Placeholder */}
@@ -192,7 +189,9 @@ export const VideoCard: React.FC<VideoCardProps> = ({
           src={posterUrl}
           alt={item.title}
           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 z-10 ${
-            isVideoLoaded && isPlaying ? 'opacity-0 pointer-events-none' : 'opacity-100'
+            isVideoLoaded && isPlaying && isFocused
+              ? 'opacity-0 pointer-events-none'
+              : 'opacity-100'
           }`}
           loading="lazy"
         />
@@ -207,7 +206,9 @@ export const VideoCard: React.FC<VideoCardProps> = ({
           playsInline
           onCanPlay={handleReadyToPlay}
           onLoadedData={handleReadyToPlay}
-          onWaiting={() => setIsLoading(true)}
+          onWaiting={() => {
+            if (isFocused && shouldPlayRef.current) setIsLoading(true);
+          }}
           onPlaying={() => {
             setIsLoading(false);
             setIsPlaying(true);
@@ -221,45 +222,46 @@ export const VideoCard: React.FC<VideoCardProps> = ({
             setIsLoading(false);
           }}
           className={`w-full h-full object-cover relative z-10 transition-opacity duration-700 ${
-            isVideoLoaded && isPlaying ? 'opacity-100' : 'opacity-0'
+            isVideoLoaded && isPlaying && isFocused ? 'opacity-100' : 'opacity-0'
           }`}
         />
 
-        {/* 3. Center Filter Overlay with Play/Resume Button and Loader */}
+        {/* 3. Center Filter Overlay (Guaranteed top of thumbnail via z-30) */}
         <div
-          className={`absolute inset-0 z-25 flex flex-col items-center justify-center transition-all duration-300 ${
-            isPlaying && !isLoading
+          className={`absolute inset-0 z-30 flex flex-col items-center justify-center p-4 transition-all duration-300 ${
+            isFocused && isPlaying && !isLoading
               ? 'opacity-0 pointer-events-none'
-              : 'opacity-100 bg-black/40 backdrop-blur-[2px] pointer-events-auto'
+              : 'opacity-100 bg-black/45 backdrop-blur-[2px] pointer-events-auto'
           }`}
+          onClick={togglePlayPause}
         >
-          {isLoading ? (
+          {isLoading && isFocused ? (
             /* Loading Spinner State */
-            <div className="flex flex-col items-center justify-center space-y-3">
-              <div className="w-14 h-14 rounded-full bg-black/60 backdrop-blur-md border border-[#CAA290]/40 flex items-center justify-center shadow-2xl">
-                <Loader2 className="w-7 h-7 text-[#CAA290] animate-spin" />
+            <div className="flex flex-col items-center justify-center space-y-3 pointer-events-none">
+              <div className="w-16 h-16 rounded-full bg-black/75 backdrop-blur-md border border-[#CAA290] flex items-center justify-center shadow-2xl">
+                <Loader2 className="w-8 h-8 text-[#CAA290] animate-spin" />
               </div>
-              <span className="text-[10px] uppercase tracking-[0.25em] text-white/90 font-medium font-sans animate-pulse">
+              <span className="text-[11px] uppercase tracking-[0.25em] text-white font-medium font-sans animate-pulse">
                 Buffering...
               </span>
             </div>
           ) : (
             /* Play / Resume CTA Button */
-            <div className="flex flex-col items-center justify-center space-y-2.5 transform transition-transform duration-300 hover:scale-105">
-              <div className="w-14 h-14 rounded-full bg-[#CAA290]/90 hover:bg-[#CAA290] text-white flex items-center justify-center shadow-2xl border border-white/20 transition-all duration-300">
-                <Play className="w-6 h-6 fill-white ml-1" />
+            <div className="flex flex-col items-center justify-center space-y-3 transform transition-transform duration-300 hover:scale-105 cursor-pointer">
+              <div className="w-16 h-16 rounded-full bg-[#CAA290] hover:bg-[#b88f7d] text-white flex items-center justify-center shadow-[0_0_30px_rgba(202,162,144,0.6)] border-2 border-white/50 transition-all duration-300">
+                <Play className="w-7 h-7 fill-white ml-1" />
               </div>
-              <div className="bg-black/60 backdrop-blur-md px-3.5 py-1 rounded-full border border-white/10 shadow-md">
-                <span className="text-[11px] font-sans tracking-widest uppercase font-semibold text-white">
-                  {hasPlayedBefore ? 'Resume' : isTouchDevice ? 'Tap to Play' : 'Play Preview'}
+              <div className="bg-black/75 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/20 shadow-lg">
+                <span className="text-xs font-sans tracking-widest uppercase font-semibold text-white">
+                  {hasPlayedBefore ? 'Resume' : isTouchDevice ? 'Tap to Play' : 'Click to Play'}
                 </span>
               </div>
             </div>
           )}
         </div>
 
-        {/* 4. Custom Glassmorphic Bottom Controls Overlay */}
-        <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-auto bg-black/55 backdrop-blur-md py-1.5 px-3 rounded-full text-white text-xs">
+        {/* 4. Custom Glassmorphic Bottom Controls Overlay (z-40) */}
+        <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between z-40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-auto bg-black/60 backdrop-blur-md py-1.5 px-3 rounded-full text-white text-xs">
           {/* Play / Pause Toggle */}
           <button
             onClick={togglePlayPause}

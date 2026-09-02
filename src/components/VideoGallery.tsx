@@ -1,10 +1,11 @@
 import React from 'react';
 import { EDITED_VIDEOS, RAW_VIDEOS } from '@/data/portfolio-data';
 import { VideoCard } from './VideoCard';
+import { VideoPlaybackProvider } from '@/context/VideoPlaybackContext';
 
 export const VideoGallery: React.FC = () => {
   return (
-    <>
+    <VideoPlaybackProvider>
       {/* 1. EDITED VIDEOS SECTION (C.O.N.T.E.N.T) */}
       <section
         id="content"
@@ -101,6 +102,6 @@ export const VideoGallery: React.FC = () => {
           </svg>
         </div>
       </section>
-    </>
+    </VideoPlaybackProvider>
   );
 };
