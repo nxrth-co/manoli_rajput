@@ -1,0 +1,101 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-beige: #CAA290;
+    --color-taupe: #B5A091;
+    --color-cream: #FDE4D0;
+    --color-ivory: #E4DCD1;
+    --color-sage: #959E96;
+    --color-text: #3A332F;
+    --color-text-muted: #6B5E56;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    background-color: var(--color-ivory);
+    color: var(--color-text);
+  }
+
+  body {
+    background-color: var(--color-ivory);
+    color: var(--color-text);
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background-color: var(--color-beige);
+    color: #FFF;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-serif);
+  }
+}
+
+.ambient-glow {
+  background: radial-gradient(circle, rgba(253,228,208,0.45) 0%, rgba(228,220,209,0) 70%);
+  filter: blur(40px);
+}
+
+.nav-link {
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  position: relative;
+  opacity: 0.75;
+  transition: opacity 0.3s ease;
+}
+
+.nav-link:hover {
+  opacity: 1;
+}
+
+.nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background-color: #CAA290;
+  transition: width 0.3s ease;
+}
+
+.nav-link:hover::after {
+  width: 100%;
+}
+
+@keyframes grain-animation {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(-2%, -4%); }
+  20% { transform: translate(-6%, 2%); }
+  30% { transform: translate(3%, -10%); }
+  40% { transform: translate(-2%, 10%); }
+  50% { transform: translate(-6%, 4%); }
+  60% { transform: translate(6%, 0%); }
+  70% { transform: translate(0%, 6%); }
+  80% { transform: translate(1%, 14%); }
+  90% { transform: translate(-4%, 4%); }
+}
+
+.animate-grain {
+  animation: grain-animation 6s steps(12) infinite;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #E4DCD1;
+}
+::-webkit-scrollbar-thumb {
+  background: #B5A091;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #CAA290;
+}
