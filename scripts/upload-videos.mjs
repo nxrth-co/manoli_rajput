@@ -11,7 +11,15 @@ import { v2 as cloudinary } from 'cloudinary';
 
 // 1. Target files specified for upload
 const TARGET_FILES = [
-  'edited1.mp4'
+  'edited1.mp4',
+  'edited2.mp4',
+  'edited3.mp4',
+  'edited4.mp4',
+  'edited5.mp4',
+  'edited6.mp4',
+  'raw1.mp4',
+  'raw2.mp4',
+  'raw3.mp4'
 ];
 
 // 2. Parse CLOUDINARY_URL directly from .env file
@@ -123,11 +131,26 @@ async function main() {
   console.log('====================================================\n');
 
   const cloudName = configureCloudinary();
-  const results = {};
+  const outJsonPath = path.resolve(process.cwd(), 'cloudinary-videos.json');
+  let results = {};
+  if (fs.existsSync(outJsonPath)) {
+    try {
+      results = JSON.parse(fs.readFileSync(outJsonPath, 'utf8'));
+    } catch {}
+  }
   const notFound = [];
   const errors = [];
+  const force = process.argv.includes('--force');
 
   for (const filename of TARGET_FILES) {
+    const baseName = path.parse(filename).name;
+
+    // Skip if already successfully uploaded (unless --force is passed)
+    if (results[baseName]?.secure_url && !force) {
+      console.log(`[SKIP] ${filename} already uploaded: ${results[baseName].secure_url}`);
+      continue;
+    }
+
     const localPath = resolveLocalFilePath(filename);
 
     if (!localPath) {

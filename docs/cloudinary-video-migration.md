@@ -18,7 +18,8 @@ The standalone Node.js upload script processes local videos in sequence using Cl
 - **Target Assets Handled:**
   - `edited1.mp4` through `edited6.mp4` -> `portfolio/edited/editedX`
   - `raw1.mp4` through `raw3.mp4` -> `portfolio/raw/rawX`
-- **Machine-Readable Export:** Dumps a `cloudinary-videos.json` map containing `public_id`, `secure_url`, `duration`, `bytes`, and dimensions for direct consumption by the frontend.
+- **Cloudinary Asset Limit & High-Fidelity Compression:** Cloudinary enforces a 100MB (104,857,600 bytes) hard ceiling on single video uploads for free-tier accounts. `edited1.mp4` was compressed from ~155MB to ~87.7MB using constrained high-bitrate VBR (`13.15 Mbps` video, `192 kbps` AAC audio, `libx264 -preset fast`, `+faststart`), ensuring pristine 4K 60fps quality without visible compression loss while safely clearing the upload threshold.
+- **Machine-Readable Export & Resume:** Dumps a `cloudinary-videos.json` map containing `public_id`, `secure_url`, `duration`, `bytes`, and dimensions. The script checks this file on subsequent runs to avoid re-uploading already verified assets.
 
 ---
 
@@ -27,9 +28,8 @@ The standalone Node.js upload script processes local videos in sequence using Cl
 ### Core Design Principles
 1. **Zero Eager Video Buffering:** The site does not download video streams on initial page load. Instead, it relies on lightweight Cloudinary auto-generated posters.
 2. **Auto-Generated Posters (`f_auto,q_auto,so_auto`):** Cloudinary's video transformation pipeline produces optimized WebP/AVIF stills at a specific frame (`so_auto` or `so_1`).
-3. **Hover & Click Activation:** Video elements only mount their media stream and begin buffering when triggered by user hover (`onMouseEnter`) or tap/click.
-4. **Adaptive Streaming & Delivery (`f_auto,q_auto`):** Video streams are dynamically delivered in modern formats (AV1, VP9, or H.264) tailored to the requesting browser's codecs and network conditions.
-5. **Faithful Visual Parity:** Preserves the bespoke phone mockup container, custom play/pause/mute controls, time scrub progress bar, film grain noise canvas, and warm cinematic palette (`#CAA290`, `#B5A091`, `#FDE4D0`, `#E4DCD1`).
+- **Adaptive Streaming vs Direct Cloudinary Stream:** For large video assets (like `edited1.mp4` at ~87MB), Cloudinary returns an `HTTP 423 Locked: Resource is too large to process synchronously, processing in background` response when on-the-fly `f_auto,q_auto` transformation paths are requested on un-transcoded media. `VideoCard` serves the direct, web-optimized MP4 stream URL directly (`https://res.cloudinary.com/<cloud>/video/upload/<publicId>.mp4`), ensuring instantaneous `HTTP 200 OK` byte-range streaming without server locks.
+- **Asynchronous Video Readiness (Zero Playback Stalls):** Because the `<video>` element mounts its `src` lazily upon the first interaction, playback is coordinated via `shouldPlayRef` and `onCanPlay`/`onLoadedData`. This prevents the browser from rejecting `video.play()` during the React re-render tick when `video.src` is first attached.
 
 ---
 

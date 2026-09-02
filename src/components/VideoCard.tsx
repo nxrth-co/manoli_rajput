@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { VideoItem } from '@/types/portfolio';
 import { Play, Pause, Volume2, VolumeX } from 'lucide-react';
 
@@ -17,6 +17,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
+  const shouldPlayRef = useRef<boolean>(false);
 
   // Lazy loading state: video src is unmounted/unbuffered until interaction
   const [isActivated, setIsActivated] = useState(false);
@@ -25,31 +26,36 @@ export const VideoCard: React.FC<VideoCardProps> = ({
   const [progress, setProgress] = useState(0);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
 
-  // 1. Auto-Generated Lightweight Thumbnail (f_auto, q_auto, capture still frame at 1s)
-  const posterUrl = `https://res.cloudinary.com/${cloudName}/video/upload/f_auto,q_auto,so_1.0,c_fill,w_${
+  // 1. Auto-Generated Lightweight Thumbnail (capture still frame at 1s)
+  const posterUrl = `https://res.cloudinary.com/${cloudName}/video/upload/so_1.0,w_${
     isCompact ? 480 : 560
-  }/${item.publicId}.jpg`;
+  },c_fill/${item.publicId}.jpg`;
 
-  // 2. Optimized Video Stream URL (f_auto, q_auto for browser-adaptive codecs)
-  const videoUrl = `https://res.cloudinary.com/${cloudName}/video/upload/f_auto,q_auto/${item.publicId}.mp4`;
+  // 2. Direct Cloudinary Video Stream URL
+  // Note: We deliberately use the direct clean stream URL without on-the-fly transformations (f_auto,q_auto)
+  // because Cloudinary returns "HTTP 423 Locked" for on-demand transcoding of large video assets.
+  const videoUrl = `https://res.cloudinary.com/${cloudName}/video/upload/${item.publicId}.mp4`;
 
-  // Interaction: Trigger buffering and playback
+  // Trigger buffering and playback upon user interaction
   const activateAndPlay = () => {
+    shouldPlayRef.current = true;
     if (!isActivated) {
       setIsActivated(true);
-    }
-    const video = videoRef.current;
-    if (video) {
-      video
-        .play()
-        .then(() => setIsPlaying(true))
-        .catch((err) => {
-          console.warn('Playback attempt prevented:', err);
-        });
+    } else {
+      const video = videoRef.current;
+      if (video) {
+        video
+          .play()
+          .then(() => setIsPlaying(true))
+          .catch((err) => {
+            console.warn('Playback attempt prevented:', err);
+          });
+      }
     }
   };
 
   const pauseVideo = () => {
+    shouldPlayRef.current = false;
     const video = videoRef.current;
     if (video) {
       video.pause();
@@ -66,8 +72,13 @@ export const VideoCard: React.FC<VideoCardProps> = ({
     const video = videoRef.current;
     if (video) {
       if (video.paused) {
-        video.play().then(() => setIsPlaying(true)).catch(console.warn);
+        shouldPlayRef.current = true;
+        video
+          .play()
+          .then(() => setIsPlaying(true))
+          .catch(console.warn);
       } else {
+        shouldPlayRef.current = false;
         video.pause();
         setIsPlaying(false);
       }
@@ -80,6 +91,17 @@ export const VideoCard: React.FC<VideoCardProps> = ({
     if (video) {
       video.muted = !video.muted;
       setIsMuted(video.muted);
+    }
+  };
+
+  // Called when video element receives source and is ready to buffer/play
+  const handleReadyToPlay = () => {
+    setIsVideoLoaded(true);
+    if (shouldPlayRef.current && videoRef.current) {
+      videoRef.current
+        .play()
+        .then(() => setIsPlaying(true))
+        .catch((err) => console.warn('Autoplay prevented:', err));
     }
   };
 
@@ -146,14 +168,20 @@ export const VideoCard: React.FC<VideoCardProps> = ({
         <video
           ref={videoRef}
           src={isActivated ? videoUrl : undefined}
-          preload="metadata"
+          preload={isActivated ? 'auto' : 'none'}
           loop
           muted={isMuted}
           playsInline
+          onCanPlay={handleReadyToPlay}
+          onLoadedData={handleReadyToPlay}
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
           onTimeUpdate={handleTimeUpdate}
-          onLoadedData={() => setIsVideoLoaded(true)}
+          onError={(e) => {
+            console.warn(`Video playback error on ${item.id}:`, e);
+          }}
           className={`w-full h-full object-cover relative z-10 transition-opacity duration-700 ${
-            isVideoLoaded ? 'opacity-100' : 'opacity-0'
+            isVideoLoaded && isPlaying ? 'opacity-100' : 'opacity-0'
           }`}
         />
 

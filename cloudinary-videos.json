@@ -1,1 +1,12 @@
-{}
+{
+  "edited1": {
+    "filename": "edited1.mp4",
+    "public_id": "portfolio/edited/edited1",
+    "secure_url": "https://res.cloudinary.com/xo4kifry/video/upload/v1788371334/portfolio/edited/edited1.mp4",
+    "duration": 56.416667,
+    "format": "mp4",
+    "bytes": 87741322,
+    "width": 2160,
+    "height": 3840
+  }
+}
