@@ -61,6 +61,16 @@ We dug into the network headers and found Cloudinary returning:
 
 Turns out, asking Cloudinary to dynamically transcode an 87MB video on-the-fly with `f_auto,q_auto` causes it to lock the file for background processing instead of streaming it immediately. Since our file is already an ultra-compatible H.264 MP4 with web `+faststart`, switching to the direct stream URL bypassed the lock and returned instant `HTTP 200 OK` byte-range streaming. Pair that with coordinating the lazy `src` mounting via `onCanPlay` so `video.play()` doesn't fire before React finishes mounting the source, and `edited1` now starts playing the millisecond your cursor touches the card!
 
+### The Polish: Play/Resume Filter & Buffering Spinner
+
+To give viewers a high-end, tactile experience:
+- We built a dark frosted overlay with an inviting circular Play button on top of every video thumbnail.
+- While the video buffers, it switches to a sleek, animated gold spinner (`Buffering...`).
+- When playback starts, the overlay effortlessly disappears.
+- When the viewer leaves or moves to another video, the overlay gracefully returns with the Play icon now reading **"Resume"**!
+- On Desktop: Hovering previews and leaves pause; clicking toggles.
+- On Mobile: Tapping cleanly activates and pauses with zero accidental scroll triggers.
+
 ---
 
 ### What's Under the Hood

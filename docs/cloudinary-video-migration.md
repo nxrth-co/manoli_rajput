@@ -30,6 +30,12 @@ The standalone Node.js upload script processes local videos in sequence using Cl
 2. **Auto-Generated Posters (`f_auto,q_auto,so_auto`):** Cloudinary's video transformation pipeline produces optimized WebP/AVIF stills at a specific frame (`so_auto` or `so_1`).
 - **Adaptive Streaming vs Direct Cloudinary Stream:** For large video assets (like `edited1.mp4` at ~87MB), Cloudinary returns an `HTTP 423 Locked: Resource is too large to process synchronously, processing in background` response when on-the-fly `f_auto,q_auto` transformation paths are requested on un-transcoded media. `VideoCard` serves the direct, web-optimized MP4 stream URL directly (`https://res.cloudinary.com/<cloud>/video/upload/<publicId>.mp4`), ensuring instantaneous `HTTP 200 OK` byte-range streaming without server locks.
 - **Asynchronous Video Readiness (Zero Playback Stalls):** Because the `<video>` element mounts its `src` lazily upon the first interaction, playback is coordinated via `shouldPlayRef` and `onCanPlay`/`onLoadedData`. This prevents the browser from rejecting `video.play()` during the React re-render tick when `video.src` is first attached.
+- **Interactive Play/Resume Filter & Buffering Spinner:**
+  - A frosted backdrop overlay (`bg-black/40 backdrop-blur-[2px]`) sits on top of the thumbnail by default with a pulsating gold play button, urging user interaction.
+  - When triggered, a circular `Loader2` buffering spinner indicates video load progress.
+  - As soon as the video frames buffer, the overlay smoothly fades out.
+  - When the user moves away or pauses, the overlay returns and dynamically displays **"Resume"** with the play button.
+  - Responsive interaction: **Hover to play on desktop** (`onMouseEnter` / `onMouseLeave`) and **Click/Tap to play on mobile** (touch capability detection).
 
 ---
 
