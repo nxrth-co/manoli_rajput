@@ -1,11 +1,43 @@
-import React from 'react';
-import { EDITED_VIDEOS, RAW_VIDEOS } from '@/data/portfolio-data';
+'use client';
+
+import React, { useRef, useState } from 'react';
+import { VIDEO_CATEGORIES, VIDEOS_BY_CATEGORY } from '@/data/portfolio-data';
 import { VideoCard } from './VideoCard';
 import { VideoPlaybackProvider } from '@/context/VideoPlaybackContext';
+import { VideoCategory } from '@/types/portfolio';
+
+const ROW_CAPTIONS: Record<VideoCategory, string[]> = {
+  Moments: ['MAGICAL • DRAMATIC • CINEMATIC', 'CHERISHED • NOURISHED • FLOURISHED'],
+  Mindful: ['CLICK • WATCH • ENGAGE', 'TREND • TALK • TRANSFORM'],
+  Making: ['LIGHTS • CAMERA • ACTION', 'PREP • SET • ROLL']
+};
 
 export const VideoGallery: React.FC = () => {
+  const [selectedCategory, setSelectedCategory] = useState<VideoCategory>('Moments');
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  const selectCategory = (category: VideoCategory) => {
+    setSelectedCategory(category);
+  };
+
+  const handleTabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    let nextIndex: number | undefined;
+
+    if (event.key === 'ArrowRight') nextIndex = (index + 1) % VIDEO_CATEGORIES.length;
+    if (event.key === 'ArrowLeft') nextIndex = (index - 1 + VIDEO_CATEGORIES.length) % VIDEO_CATEGORIES.length;
+    if (event.key === 'Home') nextIndex = 0;
+    if (event.key === 'End') nextIndex = VIDEO_CATEGORIES.length - 1;
+
+    if (nextIndex !== undefined) {
+      event.preventDefault();
+      const category = VIDEO_CATEGORIES[nextIndex];
+      tabRefs.current[nextIndex]?.focus();
+      selectCategory(category);
+    }
+  };
+
   return (
-    <VideoPlaybackProvider>
+    <VideoPlaybackProvider key={selectedCategory}>
       {/* 1. EDITED VIDEOS SECTION (C.O.N.T.E.N.T) */}
       <section
         id="content"
@@ -27,11 +59,63 @@ export const VideoGallery: React.FC = () => {
             </div>
           </div>
 
-          {/* 6-Video Phone Frame Grid (3x2 Desktop Layout) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 lg:gap-14 relative z-10">
-            {EDITED_VIDEOS.map((item) => (
-              <VideoCard key={item.id} item={item} />
+          <div
+            className="mb-10 flex gap-2 overflow-x-auto border-b border-[#3A332F]/15"
+            role="tablist"
+            aria-label="Video categories"
+          >
+            {VIDEO_CATEGORIES.map((category, index) => (
+              <button
+                key={category}
+                ref={(element) => {
+                  tabRefs.current[index] = element;
+                }}
+                id={`tab-${category.toLowerCase()}`}
+                type="button"
+                role="tab"
+                aria-selected={selectedCategory === category}
+                aria-controls="video-gallery-panel"
+                tabIndex={selectedCategory === category ? 0 : -1}
+                onClick={() => selectCategory(category)}
+                onKeyDown={(event) => handleTabKeyDown(event, index)}
+                className={`shrink-0 border-b-2 px-5 py-3 text-sm uppercase tracking-[0.2em] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#CAA290] md:px-8 ${
+                  selectedCategory === category
+                    ? 'border-[#CAA290] bg-[#CAA290]/15 font-semibold text-[#8F6653]'
+                    : 'border-transparent text-[#6B5E56] hover:text-[#3A332F]'
+                }`}
+              >
+                {category}
+              </button>
             ))}
+          </div>
+
+          <div
+            id="video-gallery-panel"
+            role="tabpanel"
+            aria-labelledby={`tab-${selectedCategory.toLowerCase()}`}
+            className="relative z-10 space-y-12"
+          >
+            {ROW_CAPTIONS[selectedCategory].map((caption, rowIndex) => {
+              const rowItems = VIDEOS_BY_CATEGORY[selectedCategory].slice(rowIndex * 3, rowIndex * 3 + 3);
+
+              return (
+                <div key={`${selectedCategory}-row-${rowIndex}`}>
+                  <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-3 lg:gap-14">
+                    {rowItems.map((item) => (
+                      <VideoCard key={item.id} item={item} />
+                    ))}
+                  </div>
+                  <p className="mt-8 text-center font-sans text-base font-medium uppercase leading-relaxed tracking-[0.18em] text-[#B5A091] sm:text-lg md:text-xl md:tracking-[0.2em]">
+                    {caption.split('•').map((part, index) => (
+                      <React.Fragment key={`${selectedCategory}-caption-${rowIndex}-${index}`}>
+                        {index > 0 && <span className="text-[#CAA290]">•</span>}
+                        {part}
+                      </React.Fragment>
+                    ))}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -73,22 +157,6 @@ export const VideoGallery: React.FC = () => {
             </p>
           </div>
 
-          {/* 3 Raw Videos Row */}
-          <div className="space-y-8 pt-8 border-t border-[#3A332F]/10">
-            <div className="text-center max-w-md mx-auto">
-              <span className="text-[10px] tracking-[0.3em] uppercase text-[#B5A091] font-bold">
-                behind the scenes
-              </span>
-              <h3 className="text-2xl md:text-3xl font-serif mt-1">raw takes</h3>
-              <p className="text-xs text-[#6B5E56] mt-1">visual proof from camera source</p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 justify-items-center">
-              {RAW_VIDEOS.map((item) => (
-                <VideoCard key={item.id} item={item} isCompact />
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* Wave Divider to Story */}

@@ -23,7 +23,7 @@ export const Hero: React.FC = () => {
 
           <div className="border-t border-[#3A332F]/10 pt-8 space-y-6">
             <p className="text-xl md:text-2xl font-light text-[#6B5E56] leading-loose max-w-2xl">
-              The person behind the camera is rarely seen, yet constantly present &mdash; searching for the perfect angle to bring every frame to life. I&apos;m Manoli; perhaps not a common name, but certainly one you&apos;ll remember. Just like my name, my ideas are unique, transforming visions into visuals. From Instagram to Facebook, YouTube and beyond, I capture stories that connect. Here&apos;s a glimpse into the work that caught attention through the lens.
+              The person behind the camera is rarely seen, yet constantly present searching for the perfect angle to bring every frame to life. I&apos;m Manoli; perhaps not a common name, but certainly one you&apos;ll remember. Just like my name, my ideas are unique, transforming visions into visuals. From Instagram to Facebook, YouTube and beyond, I capture stories that connect. Here&apos;s a glimpse into the work that caught attention through the lens.
             </p>
             <p className="text-xs md:text-sm tracking-[0.2em] uppercase text-[#B5A091] font-semibold pt-4">
               creator &bull; storyteller &bull; visual strategist
