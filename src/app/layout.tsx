@@ -43,8 +43,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`scroll-smooth ${cormorant.variable} ${dmSans.variable}`}>
-      <body className="bg-[#E4DCD1] text-[#3A332F] font-sans antialiased overflow-x-hidden min-h-screen">
+    <html lang="en" suppressHydrationWarning className={`scroll-smooth ${cormorant.variable} ${dmSans.variable}`}>
+      <body
+        suppressHydrationWarning
+        className="bg-[#E4DCD1] text-[#3A332F] font-sans antialiased overflow-x-hidden min-h-screen"
+      >
         {children}
       </body>
     </html>

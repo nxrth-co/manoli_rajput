@@ -32,6 +32,17 @@ export const VideoCard: React.FC<VideoCardProps> = ({ item }) => {
     setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
   }, []);
 
+  // Check if video is already ready or cached on mount or when videoUrl changes
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (video.readyState >= 2) {
+      setHasVideoFrame(true);
+      setIsLoading(false);
+    }
+  }, [item.videoUrl]);
+
   // Concurrency monitor: if this card is no longer the active video, stop it immediately
   useEffect(() => {
     if (!isFocused) {
@@ -68,6 +79,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({ item }) => {
           setIsLoading(false);
           setIsPlaying(true);
           setHasPlayedBefore(true);
+          setHasVideoFrame(true);
         })
         .catch((err) => {
           console.warn('Playback attempt prevented:', err);
@@ -77,6 +89,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({ item }) => {
     };
 
     if (video.readyState >= 2) {
+      setHasVideoFrame(true);
       startPlayback();
       return;
     }
@@ -126,6 +139,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({ item }) => {
           setIsLoading(false);
           setIsPlaying(true);
           setHasPlayedBefore(true);
+          setHasVideoFrame(true);
         })
         .catch((err) => {
           console.warn('Autoplay prevented:', err);
@@ -136,8 +150,19 @@ export const VideoCard: React.FC<VideoCardProps> = ({ item }) => {
 
   const handleTimeUpdate = () => {
     const video = videoRef.current;
-    if (video && video.duration) {
-      setProgress((video.currentTime / video.duration) * 100);
+    if (video) {
+      if (!hasVideoFrame && (video.currentTime > 0 || video.readyState >= 2)) {
+        setHasVideoFrame(true);
+      }
+      if (isLoading && video.currentTime > 0) {
+        setIsLoading(false);
+      }
+      if (!isPlaying && !video.paused) {
+        setIsPlaying(true);
+      }
+      if (video.duration) {
+        setProgress((video.currentTime / video.duration) * 100);
+      }
     }
   };
 
@@ -164,7 +189,11 @@ export const VideoCard: React.FC<VideoCardProps> = ({ item }) => {
         />
 
         {/* Dynamic Watermark Letter Placeholder */}
-        <div className="absolute inset-0 flex flex-col p-6 justify-center items-center z-0 pointer-events-none bg-gradient-to-b from-[#E4DCD1]/10 to-black">
+        <div
+          className={`absolute inset-0 flex flex-col p-6 justify-center items-center z-0 pointer-events-none bg-gradient-to-b from-[#E4DCD1]/10 to-black transition-opacity duration-300 ${
+            hasVideoFrame || isPlaying || progress > 0 ? 'opacity-0' : 'opacity-100'
+          }`}
+        >
           <span className="font-serif text-5xl italic opacity-35 text-[#E4DCD1]">
             {item.letter}
           </span>
@@ -198,15 +227,21 @@ export const VideoCard: React.FC<VideoCardProps> = ({ item }) => {
             setIsLoading(false);
             setIsPlaying(true);
             setHasPlayedBefore(true);
+            setHasVideoFrame(true);
           }}
-          onPlay={() => setIsPlaying(true)}
+          onPlay={() => {
+            setIsPlaying(true);
+            setHasVideoFrame(true);
+          }}
           onPause={() => setIsPlaying(false)}
           onTimeUpdate={handleTimeUpdate}
           onError={(e) => {
             console.warn(`Video playback error on ${item.id}:`, e);
             setIsLoading(false);
           }}
-          className={`w-full h-full object-cover relative z-10 transition-opacity duration-700 ${hasVideoFrame ? 'opacity-100' : 'opacity-0'}`}
+          className={`w-full h-full object-cover relative z-10 transition-opacity duration-300 ${
+            hasVideoFrame || isPlaying || progress > 0 ? 'opacity-100' : 'opacity-0'
+          }`}
         />
 
         {/* 3. Center Filter Overlay (Guaranteed top of thumbnail via z-30) */}
