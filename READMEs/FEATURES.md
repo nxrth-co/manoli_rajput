@@ -5,3 +5,5 @@ This document tracks all features, modules, and migrations implemented in this c
 ## Implemented Features
 
 - [Cloudinary Video Migration & Next.js App Router Architecture](../docs/cloudinary-video-migration.md) - Batch chunked upload script (`upload_large`) for large video assets (>140MB), Next.js App Router modular component migration (`VideoGallery`, `VideoCard`), and lazy-loading with auto-generated thumbnails (`f_auto,q_auto`).
+- [Cloudinary Portfolio Video Migration (Moments, Mindful, Making)](../docs/cloudinary-portfolio-videos-migration.md) - Purged legacy Cloudinary video assets, uploaded all 18 portfolio videos across Moments, Mindful, and Making via chunked uploader, and updated data provider with optimized delivery URLs.
+

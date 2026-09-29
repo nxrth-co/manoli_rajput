@@ -224,7 +224,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({ item }) => {
                 <Loader2 className="w-8 h-8 text-[#CAA290] animate-spin" />
               </div>
               <span className="text-[11px] uppercase tracking-[0.25em] text-white font-medium font-sans animate-pulse">
-                Buffering...
+                Just a moment...
               </span>
             </div>
           ) : (

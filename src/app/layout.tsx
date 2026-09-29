@@ -20,7 +20,17 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   title: 'Manoli - Frame Artist, Storyteller & Visual Strategist',
   description:
-    'Cinematic creator website of Manoli, Frame Artist. Transforming ideas into visual stories that connect and stay in memory.'
+    'Cinematic creator website of Manoli, Frame Artist. Transforming ideas into visual stories that connect and stay in memory.',
+  icons: {
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/manoli-rajput-favicon-removebg-preview.png', type: 'image/png' }
+    ],
+    shortcut: ['/favicon.ico'],
+    apple: [
+      { url: '/manoli-rajput-favicon-removebg-preview.png' }
+    ]
+  }
 };
 
 export const viewport: Viewport = {
